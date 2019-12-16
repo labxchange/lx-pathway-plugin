@@ -2,6 +2,7 @@
 REST API for working with LabXchange Pathways
 """
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError
@@ -19,6 +20,8 @@ from openedx.core.lib.api.view_utils import view_auth_classes
 from lx_pathway_plugin.keys import PathwayLocator
 from lx_pathway_plugin.models import Pathway, PathwaySerializer
 
+User = get_user_model()
+
 # Views
 
 
@@ -31,12 +34,68 @@ class PathwayView(APIView):
         """
         Get a pathway
         """
-        try:
-            pathway_key = PathwayLocator.from_string(pathway_key_str)
-            pathway = Pathway.objects.get(uuid=pathway_key.uuid)
-        except (InvalidKeyError, Pathway.DoesNotExist):
-            raise Http404
+        pathway = get_pathway_or_404(pathway_key_str)
         # TODO: add permissions
+        return Response(PathwaySerializer(pathway).data)
+
+    def patch(self, request, pathway_key_str):
+        """
+        Update a pathway's draft data.
+        The body of this request must be a JSON object with only a 'draft_data'
+        key, which is the new draft data for the pathway.
+        """
+        pathway = get_pathway_or_404(pathway_key_str)
+        serializer = PathwaySerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if "draft_data" in data:
+            pathway.draft_data = data["draft_data"]  # Will be validated and cleaned by save()
+        if "owner_user_id" in data or "owner_group_name" in data:
+            if not request.user.is_staff:
+                raise PermissionDenied("Only global staff can change a pathway owner.")
+            if data.get("owner_user_id"):
+                pathway.owner_user = User.objects.get(pk=data["owner_user_id"])
+                pathway.owner_group = None
+            elif data.get("owner_group_name"):
+                pathway.owner_user = None
+                pathway.owner_group = Group.objects.get(name=data["owner_group_name"])
+        pathway.save()
+        return Response(PathwaySerializer(pathway).data)
+
+    def delete(self, request, pathway_key_str):
+        """
+        Delete a pathway
+        """
+        pathway = get_pathway_or_404(pathway_key_str)
+        pathway.delete()
+        return Response({})
+
+
+@view_auth_classes()
+class PathwayPublishView(APIView):
+    """
+    Publish or revert changes to a pathway
+
+    Note: No history is kept; only the current draft and the last published
+    version.
+    """
+    def post(self, request, pathway_key_str):
+        """
+        Publish changes
+        """
+        pathway = get_pathway_or_404(pathway_key_str)
+        pathway.published_data = pathway.draft_data
+        pathway.save()
+        return Response(PathwaySerializer(pathway).data)
+
+    def delete(self, request, pathway_key_str):
+        """
+        Delete a pathway
+        """
+        pathway = get_pathway_or_404(pathway_key_str)
+        pathway.draft_data = pathway.published_data
+        pathway.save()
         return Response(PathwaySerializer(pathway).data)
 
 
@@ -74,3 +133,14 @@ def create_pathway(request):
     except IntegrityError:
         raise ValidationError("A conflicting pathway already exists.")
     return Response(PathwaySerializer(pathway).data)
+
+
+def get_pathway_or_404(pathway_key_str):
+    """
+    Get the pathway from the given string key
+    """
+    try:
+        pathway_key = PathwayLocator.from_string(pathway_key_str)
+        return Pathway.objects.get(uuid=pathway_key.uuid)
+    except (InvalidKeyError, Pathway.DoesNotExist):
+        raise Http404
