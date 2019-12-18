@@ -6,6 +6,9 @@ integration with Open edX.
 """
 # Declare defaults: ############################################################
 
+# The list of usernames that have permission to use this API
+# (primarily the LabXchange service user)
+LX_PATHWAY_PLUGIN_AUTHORIZED_USERNAMES = []
 
 # Register settings: ###########################################################
 
@@ -15,4 +18,4 @@ def plugin_settings(settings):
     Add our default settings to the edx-platform settings. Other settings files
     may override these values later, e.g. via envs/private.py.
     """
-    pass
+    settings.LX_PATHWAY_PLUGIN_AUTHORIZED_USERNAMES = LX_PATHWAY_PLUGIN_AUTHORIZED_USERNAMES

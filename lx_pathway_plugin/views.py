@@ -1,6 +1,8 @@
 """
 REST API for working with LabXchange Pathways
 """
+import functools
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -25,19 +27,34 @@ User = get_user_model()
 # Views
 
 
+def authorized_users_only(func):
+    """
+    Apply a very simple permissions scheme: only usernames listed in
+        LX_PATHWAY_PLUGIN_AUTHORIZED_USERNAMES
+    can use this API endpoint.
+    """
+    @functools.wraps(func)
+    def api_method(_self, request, *args, **kwargs):
+        if request.user.username not in settings.LX_PATHWAY_PLUGIN_AUTHORIZED_USERNAMES:
+            raise PermissionDenied
+        return func(_self, request, *args, **kwargs)
+    return api_method
+
+
 @view_auth_classes()
 class PathwayView(APIView):
     """
     Main API view for working with a specific pathway
     """
+    @authorized_users_only
     def get(self, request, pathway_key_str):
         """
         Get a pathway
         """
         pathway = get_pathway_or_404(pathway_key_str)
-        # TODO: add permissions
         return Response(PathwaySerializer(pathway).data)
 
+    @authorized_users_only
     def patch(self, request, pathway_key_str):
         """
         Update a pathway's draft data.
@@ -63,6 +80,7 @@ class PathwayView(APIView):
         pathway.save()
         return Response(PathwaySerializer(pathway).data)
 
+    @authorized_users_only
     def delete(self, request, pathway_key_str):
         """
         Delete a pathway
@@ -80,6 +98,7 @@ class PathwayPublishView(APIView):
     Note: No history is kept; only the current draft and the last published
     version.
     """
+    @authorized_users_only
     def post(self, request, pathway_key_str):
         """
         Publish changes
@@ -89,6 +108,7 @@ class PathwayPublishView(APIView):
         pathway.save()
         return Response(PathwaySerializer(pathway).data)
 
+    @authorized_users_only
     def delete(self, request, pathway_key_str):
         """
         Delete a pathway
@@ -105,6 +125,8 @@ def create_pathway(request):
     """
     Create a pathway
     """
+    if request.user.username not in settings.LX_PATHWAY_PLUGIN_AUTHORIZED_USERNAMES:
+        raise PermissionDenied
     serializer = PathwaySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
