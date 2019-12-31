@@ -111,7 +111,7 @@ class PathwayPublishView(APIView):
     @authorized_users_only
     def delete(self, request, pathway_key_str):
         """
-        Delete a pathway
+        Revert this pathway to the last published version
         """
         pathway = get_pathway_or_404(pathway_key_str)
         pathway.draft_data = pathway.published_data
