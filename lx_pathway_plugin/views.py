@@ -1,6 +1,7 @@
 """
 REST API for working with LabXchange Pathways
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 import functools
 
 from django.conf import settings

@@ -4,6 +4,7 @@ Common settings for the lx-pathway-plugin app.
 See apps.py for details on how this sort of plugin configures itself for
 integration with Open edX.
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 # Declare defaults: ############################################################
 
 # The list of usernames that have permission to use this API

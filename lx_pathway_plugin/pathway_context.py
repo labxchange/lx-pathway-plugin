@@ -1,6 +1,7 @@
 """
 Definition of "Pathway" as a learning context.
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 import logging
 
 from opaque_keys.edx.keys import UsageKey
@@ -23,7 +24,7 @@ class PathwayContextImpl(LearningContext):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super(PathwayContextImpl, self).__init__(**kwargs)
         self.use_draft = kwargs.get('use_draft', None)
 
     def can_edit_block(self, user, usage_key):

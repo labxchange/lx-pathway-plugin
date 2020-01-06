@@ -1,6 +1,7 @@
 """
 Django models for the pathways plugin.
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 from logging import getLogger
 import random
 import uuid
@@ -91,7 +92,7 @@ class Pathway(models.Model):
                     del item["usage_id"]  # This field is only added in the REST API response, never saved to DB
             # Replace the current value of draft_data or published_data with the cleaned version
             setattr(self, data_set, serializer.validated_data)
-        return super().save(*args, **kwargs)
+        return super(Pathway, self).save(*args, **kwargs)
 
 # Serializers
 
@@ -178,4 +179,4 @@ class PathwaySerializer(serializers.Serializer):
         # PathwayItemSerializer can access it.
         if instance:
             kwargs.setdefault("context", {})["pathway"] = instance
-        super().__init__(instance, **kwargs)
+        super(PathwaySerializer, self).__init__(instance, **kwargs)

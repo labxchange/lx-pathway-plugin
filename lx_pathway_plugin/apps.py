@@ -2,6 +2,7 @@
 """
 lx_pathway_plugin Django application initialization.
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 from django.apps import AppConfig
 
 from openedx.core.djangoapps.plugins.constants import PluginSettings, PluginURLs, ProjectType, SettingsType

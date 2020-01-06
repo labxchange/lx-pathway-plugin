@@ -1,6 +1,7 @@
 """
 OpaqueKey subclass for LabXchange Pathways
 """
+from __future__ import absolute_import, division, print_function, unicode_literals
 import re
 from uuid import UUID
 import warnings
@@ -38,7 +39,7 @@ class PathwayLocator(LearningContextKey):
             if uuid_str != str(uuid):
                 raise InvalidKeyError(self.__class__, u"uuid field got UUID string that's not in standard form")
 
-        super().__init__(uuid=uuid)
+        super(PathwayLocator, self).__init__(uuid=uuid)
 
     def _to_string(self):
         """
@@ -87,7 +88,7 @@ class PathwayUsageLocator(CheckFieldMixin, UsageKeyV2):
         self._check_key_string_field("usage_id", usage_id, regexp=self.USAGE_ID_REGEXP)
         if child_usage_id is not None:
             self._check_key_string_field("child_usage_id", usage_id, regexp=self.USAGE_ID_REGEXP)
-        super().__init__(
+        super(PathwayUsageLocator, self).__init__(
             pathway_key=pathway_key,
             block_type=block_type,
             usage_id=usage_id,
