@@ -2,26 +2,23 @@
 REST API for working with LabXchange Pathways
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import functools
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError
-from django.http import HttpResponse, Http404
+from django.http import Http404
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import UsageKey
-from opaque_keys.edx.locator import CourseLocator
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from openedx.core.lib.api.view_utils import view_auth_classes
-
 from lx_pathway_plugin.keys import PathwayLocator
 from lx_pathway_plugin.models import Pathway, PathwaySerializer
+from openedx.core.lib.api.view_utils import view_auth_classes
 
 User = get_user_model()
 
@@ -82,7 +79,7 @@ class PathwayView(APIView):
         return Response(PathwaySerializer(pathway).data)
 
     @authorized_users_only
-    def delete(self, request, pathway_key_str):
+    def delete(self, request, pathway_key_str):  # pylint: disable=unused-argument
         """
         Delete a pathway
         """
@@ -110,7 +107,7 @@ class PathwayPublishView(APIView):
         return Response(PathwaySerializer(pathway).data)
 
     @authorized_users_only
-    def delete(self, request, pathway_key_str):
+    def delete(self, request, pathway_key_str):  # pylint: disable=unused-argument
         """
         Revert this pathway to the last published version
         """

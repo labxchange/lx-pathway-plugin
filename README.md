@@ -22,3 +22,10 @@ cd /edx/src
 git clone https://github.com/open-craft/lx-pathway-plugin.git
 pip install -e /edx/src/lx-pathway-plugin
 ```
+
+## Testing on Devstack
+
+```
+make studio-shell
+make -f /edx/src/lx-pathway-plugin/Makefile validate
+```

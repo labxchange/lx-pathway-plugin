@@ -2,15 +2,16 @@
 Definition of "Pathway" as a learning context.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import logging
 
 from opaque_keys.edx.keys import UsageKey
 from opaque_keys.edx.locator import BundleDefinitionLocator
+
+from lx_pathway_plugin.keys import PathwayUsageLocator
+from lx_pathway_plugin.models import Pathway
 from openedx.core.djangoapps.xblock.learning_context import LearningContext
 from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
-
-from lx_pathway_plugin.models import Pathway
-from lx_pathway_plugin.keys import PathwayUsageLocator
 
 log = logging.getLogger(__name__)
 

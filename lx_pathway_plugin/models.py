@@ -1,24 +1,27 @@
 """
 Django models for the pathways plugin.
 """
+# pylint: disable=abstract-method
 from __future__ import absolute_import, division, print_function, unicode_literals
-from logging import getLogger
+
 import random
 import uuid
+from logging import getLogger
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.db import models
-from opaque_keys.edx.keys import UsageKey
-from opaque_keys import InvalidKeyError
 from jsonfield.fields import JSONField
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import UsageKey
 from rest_framework import serializers
 from xblock.exceptions import XBlockNotFoundError
 
 from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
+
 from .keys import PathwayLocator, PathwayUsageLocator
 
-log = getLogger(__name__)  # pylint: disable=invalid-name
+log = getLogger(__name__)
 User = get_user_model()
 
 
@@ -51,7 +54,7 @@ class Pathway(models.Model):
         if not title:
             title = self.draft_data.get("title", "")
         if not title:
-            title = "Pathway {}".format(uuid=self.uuid)
+            title = "Pathway {}".format(self.uuid)
         return title
 
     @property
@@ -69,7 +72,7 @@ class Pathway(models.Model):
         if (not self.owner_user) == (not self.owner_group):
             # We can remove this check and replace it with a proper database constraint
             # once Open edX is upgraded to Django 2.2+
-            raise ValidationError(_("One and only one of 'user' and 'group' must be set."))
+            raise serializers.ValidationError("One and only one of 'user' and 'group' must be set.")
         for data_set in ('draft_data', 'published_data'):
             serializer = PathwayDataSerializer(data=getattr(self, data_set))
             serializer.is_valid(raise_exception=True)
@@ -124,7 +127,8 @@ class PathwayItemSerializer(serializers.Serializer):
     """
     Serializer for the data about each item in a pathway
     """
-    usage_id = serializers.SerializerMethodField(required=False, read_only=True)  # The XBlock's usage key in this pathway
+    # The XBlock's usage key in this pathway:
+    usage_id = serializers.SerializerMethodField(required=False, read_only=True)
     original_usage_id = serializers.CharField()  # The XBlock's original usage key (in a library, course, or pathway)
     id = serializers.SlugField(default=make_random_id)
     # What version of the XBlock to use (it's actually the xblock's library/course *bundle* version number)

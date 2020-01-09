@@ -3,7 +3,6 @@
 """
 Package metadata for lx_pathway_plugin.
 """
-# pylint: disable=open-builtin
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
@@ -87,7 +86,6 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Framework :: Django',
-        'Framework :: Django :: 1.8',
         'Framework :: Django :: 1.11',
         'Framework :: Django :: 2.0',
         'Intended Audience :: Developers',

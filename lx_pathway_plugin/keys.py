@@ -1,10 +1,12 @@
 """
 OpaqueKey subclass for LabXchange Pathways
 """
+# pylint: disable=abstract-method
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import re
-from uuid import UUID
 import warnings
+from uuid import UUID
 
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import LearningContextKey, UsageKeyV2
