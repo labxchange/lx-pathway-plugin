@@ -26,7 +26,7 @@ class LxPathwayPluginAppConfig(AppConfig):
         },
         PluginSettings.CONFIG: {
             ProjectType.CMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: 'settings'},
+                SettingsType.PRODUCTION: {PluginSettings.RELATIVE_PATH: 'settings'},
             },
         },
     }
