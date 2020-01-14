@@ -39,8 +39,8 @@ class Pathway(models.Model):
     # The actual pathway data (draft and published version)
     # Contains the list of items, original XBlock IDs, notes, etc.
     # The format of these *_data fields is defined and enforced by PathwayDataSerializer (see below)
-    draft_data = JSONField(null=False, blank=True, default={})
-    published_data = JSONField(null=False, blank=True, default={})
+    draft_data = JSONField(null=False, blank=True, default=dict)
+    published_data = JSONField(null=False, blank=True, default=dict)
 
     def __str__(self):
         return "<Pathway: {uuid} >".format(uuid=self.uuid)  # xss-lint: disable=python-wrap-html
@@ -154,8 +154,8 @@ class PathwayDataSerializer(serializers.Serializer):
     """
     title = serializers.CharField(default="Pathway")
     description = serializers.CharField(allow_blank=True, default="")
-    items = PathwayItemSerializer(many=True, default=[])
-    data = serializers.JSONField(default={})  # Other arbitrary data like learning objectives
+    items = PathwayItemSerializer(many=True, default=list)
+    data = serializers.JSONField(default=dict)  # Other arbitrary data like learning objectives
 
 
 class PathwaySerializer(serializers.Serializer):
