@@ -128,7 +128,7 @@ class PathwayUsageLocator(CheckFieldMixin, UsageKeyV2):
         (pathway_uuid, block_type, usage_id) = parts[0:3]
         pathway_key = PathwayLocator(uuid=pathway_uuid)
         try:
-            child_usage_id = parts[4]
+            child_usage_id = parts[3]
         except IndexError:
             child_usage_id = None
         return cls(pathway_key, block_type, usage_id, child_usage_id)

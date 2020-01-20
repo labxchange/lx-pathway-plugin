@@ -96,6 +96,7 @@ class PathwayContextImpl(LearningContext):
             olx_path = "{}/{}/definition.xml".format(usage_key.block_type, usage_key.child_usage_id)
         else:
             olx_path = original_def_key.olx_path
+            assert original_usage_id.block_type == usage_key.block_type
         # Now create the BundleDefinitionLocator, which is the same as original_def_key
         # except possibly with a specific version number
         return BundleDefinitionLocator(
