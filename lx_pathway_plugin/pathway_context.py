@@ -104,6 +104,7 @@ class PathwayContextImpl(LearningContext):
             block_type=usage_key.block_type,
             olx_path=olx_path,
             bundle_version=version if version else original_def_key.bundle_version,
+            draft_name=original_def_key.draft_name if not version else None,
         )
 
     def usage_for_child_include(self, parent_usage, parent_definition, parsed_include):
