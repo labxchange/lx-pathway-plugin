@@ -71,9 +71,8 @@ class PathwayUsageLocator(CheckFieldMixin, UsageKeyV2):
         lx-pb:3f3314f8-5f59-4215-b284-09fb578f561e:html:ec1d6c9f:child1
     """
     CANONICAL_NAMESPACE = 'lx-pb'  # "LabXchange Pathway Block"
-    KEY_FIELDS = ('pathway_key', 'block_type', 'usage_id')
+    KEY_FIELDS = ('pathway_key', 'block_type', 'usage_id', 'child_usage_id')
     __slots__ = KEY_FIELDS
-    CHECKED_INIT = False
 
     # Allow usage IDs to contain unicode characters
     USAGE_ID_REGEXP = re.compile(r'^[\w\-.]+$', flags=re.UNICODE)

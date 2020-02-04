@@ -36,9 +36,15 @@ class PathwayKeyTests(TestCase):
         self.assertEqual(text_type(key), key_str)
         self.assertIsInstance(key, PathwayUsageLocator)
         self.assertEqual(key.context_key, parent_key)
+        self.assertEqual(key, UsageKey.from_string(key_str))  # self equality
         # Key of a child block in a pathway:
         key_str = 'lx-pb:00000000-e4fe-47af-8ff6-123456789000:problem:0ff24589:1-2'
         key = UsageKey.from_string(key_str)
         self.assertEqual(text_type(key), key_str)
         self.assertIsInstance(key, PathwayUsageLocator)
         self.assertEqual(key.context_key, parent_key)
+        self.assertEqual(key, UsageKey.from_string(key_str))  # self equality
+        self.assertNotEqual(
+            UsageKey.from_string('lx-pb:00000000-e4fe-47af-8ff6-123456789000:unit:0ff24589'),
+            UsageKey.from_string('lx-pb:00000000-e4fe-47af-8ff6-123456789000:unit:0ff24589:1-2'),
+        )
