@@ -1,8 +1,6 @@
 """
 REST API for working with LabXchange Pathways
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import functools
 
 from django.conf import settings
@@ -79,7 +77,7 @@ class PathwayView(APIView):
         return Response(PathwaySerializer(pathway).data)
 
     @authorized_users_only
-    def delete(self, request, pathway_key_str):  # pylint: disable=unused-argument
+    def delete(self, request, pathway_key_str):
         """
         Delete a pathway
         """
@@ -107,7 +105,7 @@ class PathwayPublishView(APIView):
         return Response(PathwaySerializer(pathway).data)
 
     @authorized_users_only
-    def delete(self, request, pathway_key_str):  # pylint: disable=unused-argument
+    def delete(self, request, pathway_key_str):
         """
         Revert this pathway to the last published version
         """

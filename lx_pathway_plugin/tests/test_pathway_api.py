@@ -3,8 +3,6 @@ Test for the LabXchange pathway learning context REST API.
 
 These tests need to be run within the LMS's virtualenv.
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from copy import deepcopy
 
 from django.test import override_settings
@@ -31,7 +29,7 @@ class PathwayApiTests(APITestCase):
         """
         Create some XBlocks in a content library for use in any tests
         """
-        super(PathwayApiTests, cls).setUpClass()
+        super().setUpClass()
         # Create a couple libraries and blocks that can be used for these tests:
         cls.collection = blockstore_api.create_collection("Pathway Test Collection")
         cls.organization = Organization.objects.create(name="TestOrg", short_name="TestOrg")
@@ -41,6 +39,8 @@ class PathwayApiTests(APITestCase):
             slug="lx-pathway-lib1",
             title="Pathway Test Lib",
             description="",
+            allow_public_learning=True,
+            allow_public_read=True,
         )
         cls.problem_block1_id = library_api.create_library_block(cls.lib1.key, "problem", "p1").usage_key
         library_api.publish_changes(cls.lib1.key)
@@ -50,6 +50,8 @@ class PathwayApiTests(APITestCase):
             slug="lx-pathway-lib2",
             title="Pathway Test Lib 2",
             description="",
+            allow_public_learning=True,
+            allow_public_read=True,
         )
         cls.html_block2_id = library_api.create_library_block(cls.lib2.key, "html", "h2").usage_key
         library_api.publish_changes(cls.lib2.key)
@@ -58,7 +60,7 @@ class PathwayApiTests(APITestCase):
         """
         Set up used by each test
         """
-        super(PathwayApiTests, self).setUp()
+        super().setUp()
         # Create a service user that's authorized to use the API:
         self.user = UserFactory(username='lx-test-user', password='edx')
         self.client = APIClient()
