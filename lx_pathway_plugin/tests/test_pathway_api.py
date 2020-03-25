@@ -1,7 +1,8 @@
 """
 Test for the LabXchange pathway learning context REST API.
 
-These tests need to be run within the LMS's virtualenv.
+These tests need to be run within Studio's virtualenv:
+    make -f /edx/src/lx-pathway-plugin/Makefile validate
 """
 from copy import deepcopy
 

@@ -1,7 +1,5 @@
 """
 Studio URL configuration for lx-pathway-plugin.
-
-Note: this plugin does not add any URLs to the LMS.
 """
 from django.conf.urls import include, url
 
