@@ -1,8 +1,6 @@
 """
 REST API for working with LabXchange Pathways
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import functools
 
 from django.conf import settings
@@ -40,9 +38,9 @@ def authorized_users_only(func):
 
 
 @view_auth_classes()
-class PathwayView(APIView):
+class PathwayReadView(APIView):
     """
-    Main API view for working with a specific pathway
+    Read-only API view for working with a specific pathway
     """
     @authorized_users_only
     def get(self, request, pathway_key_str):
@@ -52,6 +50,11 @@ class PathwayView(APIView):
         pathway = get_pathway_or_404(pathway_key_str)
         return Response(PathwaySerializer(pathway).data)
 
+
+class PathwayView(PathwayReadView):
+    """
+    Main API view for working with a specific pathway
+    """
     @authorized_users_only
     def patch(self, request, pathway_key_str):
         """
@@ -79,7 +82,7 @@ class PathwayView(APIView):
         return Response(PathwaySerializer(pathway).data)
 
     @authorized_users_only
-    def delete(self, request, pathway_key_str):  # pylint: disable=unused-argument
+    def delete(self, request, pathway_key_str):
         """
         Delete a pathway
         """
@@ -107,7 +110,7 @@ class PathwayPublishView(APIView):
         return Response(PathwaySerializer(pathway).data)
 
     @authorized_users_only
-    def delete(self, request, pathway_key_str):  # pylint: disable=unused-argument
+    def delete(self, request, pathway_key_str):
         """
         Revert this pathway to the last published version
         """

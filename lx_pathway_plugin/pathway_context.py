@@ -1,8 +1,6 @@
 """
 Definition of "Pathway" as a learning context.
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import logging
 
 from opaque_keys.edx.keys import UsageKey
@@ -25,7 +23,7 @@ class PathwayContextImpl(LearningContext):
     """
 
     def __init__(self, **kwargs):
-        super(PathwayContextImpl, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.use_draft = kwargs.get('use_draft', None)
 
     def can_edit_block(self, user, usage_key):
@@ -72,10 +70,7 @@ class PathwayContextImpl(LearningContext):
         except Pathway.DoesNotExist:
             log.exception("Pathway does not exist for pathway usage key {}".format(usage_key))
             return None
-        if 'force_draft' in kwargs:
-            use_draft = kwargs['force_draft']
-        else:
-            use_draft = self.use_draft
+        use_draft = kwargs.get('force_draft', self.use_draft)
         pathway_data = getattr(pathway, 'draft_data' if use_draft else 'published_data')
         original_usage_id = None
         version = None

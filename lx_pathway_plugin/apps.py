@@ -2,8 +2,6 @@
 """
 lx_pathway_plugin Django application initialization.
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from django.apps import AppConfig
 
 from openedx.core.djangoapps.plugins.constants import PluginSettings, PluginURLs, ProjectType, SettingsType
@@ -23,9 +21,18 @@ class LxPathwayPluginAppConfig(AppConfig):
                 # The namespace to provide to django's urls.include.
                 PluginURLs.NAMESPACE: 'lx_pathway_plugin',
             },
+            ProjectType.LMS: {
+                # The namespace to provide to django's urls.include.
+                PluginURLs.NAMESPACE: 'lx_pathway_plugin',
+                # use a different set of URLs/views in the LMS
+                PluginURLs.RELATIVE_PATH: 'urls_lms',
+            },
         },
         PluginSettings.CONFIG: {
             ProjectType.CMS: {
+                SettingsType.PRODUCTION: {PluginSettings.RELATIVE_PATH: 'settings'},
+            },
+            ProjectType.LMS: {
                 SettingsType.PRODUCTION: {PluginSettings.RELATIVE_PATH: 'settings'},
             },
         },
@@ -35,4 +42,3 @@ class LxPathwayPluginAppConfig(AppConfig):
         """
         Load signal handlers when the app is ready.
         """
-        pass
