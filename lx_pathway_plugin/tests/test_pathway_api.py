@@ -5,6 +5,7 @@ These tests need to be run within Studio's virtualenv:
     make -f /edx/src/lx-pathway-plugin/Makefile validate
 """
 from copy import deepcopy
+from unittest.mock import patch
 
 from django.test import override_settings
 from opaque_keys.edx.keys import UsageKey
@@ -56,6 +57,9 @@ class PathwayApiTests(APITestCase):
         )
         cls.html_block2_id = library_api.create_library_block(cls.lib2.key, "html", "h2").usage_key
         library_api.publish_changes(cls.lib2.key)
+        # Create some users:
+        cls.user = UserFactory(username='lx-test-user', password='edx')
+        cls.other_user = UserFactory(username='other-test-user', password='edx')
 
     def setUp(self):
         """
@@ -63,11 +67,9 @@ class PathwayApiTests(APITestCase):
         """
         super().setUp()
         # Create a service user that's authorized to use the API:
-        self.user = UserFactory(username='lx-test-user', password='edx')
         self.client = APIClient()
         self.client.login(username=self.user.username, password='edx')
         # Create another user that's not authorized to use this API
-        self.other_user = UserFactory(username='other-test-user', password='edx')
         self.other_client = APIClient()
         self.other_client.login(username=self.other_user.username, password='edx')
 
@@ -87,12 +89,11 @@ class PathwayApiTests(APITestCase):
                 "items": [
                     {
                         "original_usage_id": str(self.problem_block1_id),
-                        "version": 0,
                         "data": {"notes": "this is a test note."},
                     },
                     {
                         "original_usage_id": str(self.html_block2_id),
-                        "version": 0,
+                        "version": None,  # Deprecated field kept in to check backwards compatibility
                     },
                 ],
             },
@@ -127,9 +128,6 @@ class PathwayApiTests(APITestCase):
         self.assertEqual(orig_data["owner_user_id"], self.user.id)
         self.assertEqual(orig_data["owner_group_name"], None)
         self.assertEqual(orig_data["draft_data"]["items"][0]["original_usage_id"], str(self.problem_block1_id))
-        # We specified version=0 when creating the pathway, which means "find the current version" and freeze the item
-        # at that version, so we expect the version to be 1, since the library has been saved 1 time.
-        self.assertEqual(orig_data["draft_data"]["items"][0]["version"], 1)
         self.assertEqual(orig_data["draft_data"]["items"][0]["data"]["notes"], "this is a test note.")
         self.assertEqual(orig_data["draft_data"]["items"][1]["original_usage_id"], str(self.html_block2_id))
         self.assertEqual(len(orig_data["draft_data"]["items"]), 2)
@@ -147,7 +145,7 @@ class PathwayApiTests(APITestCase):
 
         # Now we'll add a second copy of the HTML block to the pathway:
         new_draft_data = deepcopy(orig_data["draft_data"])
-        new_draft_data["items"].append({"original_usage_id": str(self.html_block2_id), "version": 0})
+        new_draft_data["items"].append({"original_usage_id": str(self.html_block2_id)})
         # Other users cannot change the pathway:
         other_response = self.other_client.patch(pathway_url, {"draft_data": new_draft_data}, format="json")
         self.assertEqual(other_response.status_code, 403)
@@ -199,3 +197,62 @@ class PathwayApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         pathway_id = response.data["id"]
         self.assertIn(chosen_uuid, pathway_id)
+
+    @patch('xmodule.html_module.add_webpack_to_fragment')
+    @patch('xmodule.html_module.shim_xmodule_js')
+    def test_complex_xblock_tree(self, _mock1, _mock2):
+        """
+        Test a Pathway with a deep XBlock tree and inter-bundle-links
+        """
+        # Create the following XBlock tree
+        # Library 2
+        #   unit "alpha"
+        #     -> link to library 1's bundle ("link1")
+        #       -> unit "beta" (in Library 1)
+        #         -> html "gamma"
+        # Then make sure we can add that whole hierarchy into a pathway.
+
+        beta_key = library_api.create_library_block(self.lib1.key, "unit", "beta").usage_key
+        gamma_key = library_api.create_library_block_child(beta_key, "html", "gamma").usage_key
+        library_api.set_library_block_olx(gamma_key, '<html>This is gamma.</html>')
+        library_api.publish_changes(self.lib1.key)
+        library_api.create_bundle_link(self.lib2.key, 'link1', self.lib1.key)
+        alpha_key = library_api.create_library_block(self.lib2.key, "unit", "alpha").usage_key
+        library_api.set_library_block_olx(alpha_key, '''
+            <unit display_name="alpha">
+                <xblock-include source="link1" definition="unit/beta" usage_hint="beta" />
+            </unit>
+        ''')
+        library_api.publish_changes(self.lib2.key)
+
+        # Create a new pathway:
+        response = self.client.post(URL_CREATE_PATHWAY, {
+            "owner_user_id": self.user.id,
+            "draft_data": {
+                "title": "A Commplex Pathway",
+                "description": "Complex pathway for testing",
+                "data": {},
+                "items": [
+                    {"original_usage_id": str(alpha_key)},
+                ],
+            },
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        pathway_id = response.data["id"]
+        pathway_url = URL_GET_PATHWAY.format(pathway_id=pathway_id)
+
+        # Now publish the pathway:
+        response = self.client.post(pathway_url + 'publish/')
+        self.assertEqual(response.status_code, 200)
+        # Get the resulting pathway:
+        response = self.client.get(pathway_url)
+        self.assertEqual(response.status_code, 200)
+
+        # Get the usage ID of the root 'alpha' XBlock:
+        alpha_key_pathway = UsageKey.from_string(response.data["published_data"]["items"][0]["usage_id"])
+        self.assertNotEqual(alpha_key_pathway, alpha_key)
+
+        block = xblock_api.load_block(alpha_key_pathway, user=self.other_user)
+        # Render the block and all its children - make sure even the descendants are rendered:
+        fragment = block.render('student_view', context={})
+        self.assertIn('This is gamma.', fragment.content)
