@@ -32,8 +32,8 @@ class Pathway(models.Model):
     # UUID of the pathway
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     # Every pathway is owned either by a user or by a group
-    owner_user = models.ForeignKey(User, null=True, blank=True)
-    owner_group = models.ForeignKey(Group, null=True, blank=True)
+    owner_user = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE)
+    owner_group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE)
     # The actual pathway data (draft and published version)
     # Contains the list of items, original XBlock IDs, notes, etc.
     # The format of these *_data fields is defined and enforced by PathwayDataSerializer (see below)
