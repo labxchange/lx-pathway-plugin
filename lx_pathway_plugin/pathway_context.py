@@ -3,10 +3,10 @@ Definition of "Pathway" as a learning context.
 """
 import logging
 
+from edx_django_utils.cache.utils import RequestCache
 from opaque_keys.edx.keys import UsageKey
-from opaque_keys.edx.locator import BundleDefinitionLocator
 
-from lx_pathway_plugin.keys import PathwayUsageLocator
+from lx_pathway_plugin.keys import PathwayLocator, PathwayUsageLocator
 from lx_pathway_plugin.models import Pathway
 from openedx.core.djangoapps.xblock.learning_context import LearningContext
 from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
@@ -63,44 +63,14 @@ class PathwayContextImpl(LearningContext):
         Must return a BundleDefinitionLocator if the XBlock exists in this
         context, or None otherwise.
         """
-        if not isinstance(usage_key, PathwayUsageLocator):
-            raise TypeError("Invalid pathway usage key")
         try:
-            pathway = Pathway.objects.get(uuid=usage_key.pathway_key.uuid)
+            original_usage_id = self._original_usage_id(usage_key, **kwargs)
         except Pathway.DoesNotExist:
-            log.exception("Pathway does not exist for pathway usage key {}".format(usage_key))
             return None
-        use_draft = kwargs.get('force_draft', self.use_draft)
-        pathway_data = getattr(pathway, 'draft_data' if use_draft else 'published_data')
-        original_usage_id = None
-        version = None
-        for item in pathway_data["items"]:
-            if item["id"] == usage_key.usage_id:
-                original_usage_id = UsageKey.from_string(item["original_usage_id"])
-                version = item["version"]
-                break
-        if original_usage_id is None:
+        if not original_usage_id:
             return None
         original_learning_context = get_learning_context_impl(original_usage_id)
-        original_def_key = original_learning_context.definition_for_usage(original_usage_id)
-        if original_def_key is None:
-            return None
-        # Now, are we talking about the block itself (that original_usage_id refers to) or one of its descendants?
-        if usage_key.child_usage_id:
-            # This is a child or other descendant of the block:
-            olx_path = "{}/{}/definition.xml".format(usage_key.block_type, usage_key.child_usage_id)
-        else:
-            olx_path = original_def_key.olx_path
-            assert original_usage_id.block_type == usage_key.block_type
-        # Now create the BundleDefinitionLocator, which is the same as original_def_key
-        # except possibly with a specific version number
-        return BundleDefinitionLocator(
-            bundle_uuid=original_def_key.bundle_uuid,
-            block_type=usage_key.block_type,
-            olx_path=olx_path,
-            bundle_version=version if version else original_def_key.bundle_version,
-            draft_name=original_def_key.draft_name if not version else None,
-        )
+        return original_learning_context.definition_for_usage(original_usage_id)
 
     def usage_for_child_include(self, parent_usage, parent_definition, parsed_include):
         """
@@ -111,26 +81,65 @@ class PathwayContextImpl(LearningContext):
         """
         assert isinstance(parent_usage, PathwayUsageLocator)
         # We need some kind of 'child_usage_id' part that can go into this child's
-        # usage key that provides enough information for definition_for_usage to
-        # use to get the BundleDefinitionLocator for the child (or its child...)
-        if parsed_include.link_id:
-            raise NotImplementedError("LabXchange pathways don't yet support linked content in other bundles")
-            # Links could be supported, and there are a couple ways to do that.
-            # A pretty good way is probably to make the 'child_usage_id' encode
-            # any and all links that must be followed from the bundle of the
-            # original parent block (the block that's added directly to the
-            # pathway) to get to this descendant's bundle.
-            # e.g. if the pathway has a block in bundle A and it has a child in
-            # bundle B via link "a2b", and that child has another child in the
-            # same bundle, and that child has a child in bundle C via link "b2c"
-            # and that last child has definition_id "html1" then the
-            # "child_usage_id" could be "a2b/b2c/html1", and
-            # definition_for_usage() could use those link names to traverse the
-            # bundle links and then find the definition XML file, without
-            # needing to know anything else.
+        orig_parent = self._original_usage_id(parent_usage)
+        orig_learning_context = get_learning_context_impl(orig_parent)
+        orig_usage_id = orig_learning_context.usage_for_child_include(orig_parent, parent_definition, parsed_include)
         return PathwayUsageLocator(
             pathway_key=parent_usage.pathway_key,
             block_type=parsed_include.block_type,
-            usage_id=parent_usage.usage_id,
-            child_usage_id=parsed_include.definition_id,
+            usage_id=parent_usage.usage_id,  # This part of our pathway key is the same for all descendant blocks.
+            child_usage_id=orig_usage_id.usage_id,
         )
+
+    def _original_usage_id(self, pathway_usage_key):
+        """
+        Given a usage key for an XBlock in this context, return the original usage
+        key.
+        """
+        pathway_data = self._pathway_data(pathway_usage_key.pathway_key)
+        original_usage_id = None
+        for item in pathway_data["items"]:
+            if item["id"] == pathway_usage_key.usage_id:
+                original_usage_id = UsageKey.from_string(item["original_usage_id"])
+                break
+        if pathway_usage_key.child_usage_id:
+            original_usage_id = replace_opaque_key(
+                original_usage_id,
+                block_type=pathway_usage_key.block_type,
+                usage_id=pathway_usage_key.child_usage_id,
+            )
+        return original_usage_id
+
+    def _pathway_data(self, pathway_key):
+        """
+        Given a Pathway key, get its data (the list of XBlocks in it).
+        Cached per-request for performance.
+        """
+        assert isinstance(pathway_key, PathwayLocator)
+        cache = RequestCache(namespace='lx-pathway-plugin')
+        cache_key = '_pathway_data:{}'.format(str(pathway_key))
+        cache_response = cache.get_cached_response(cache_key)
+        if cache_response.is_found:
+            return cache_response.value
+        try:
+            pathway = Pathway.objects.get(uuid=pathway_key.uuid)
+        except Pathway.DoesNotExist:
+            log.exception("Pathway does not exist for pathway key {}".format(pathway_key))
+            raise
+        result = getattr(pathway, 'draft_data' if self.use_draft else 'published_data')
+        cache.set(cache_key, result)
+        return result
+
+
+def replace_opaque_key(existing_key, **kwargs):
+    """
+    Copy of OpaqueKey.replace() that doesn't set the 'deprecated' field.
+
+    Avoids:
+        TypeError: __init__() got an unexpected keyword argument 'deprecated'
+    """
+    existing_values = {key: getattr(existing_key, key) for key in existing_key.KEY_FIELDS}
+    if all(value == existing_values[key] for (key, value) in kwargs.items()):
+        return existing_key
+    existing_values.update(kwargs)
+    return type(existing_key)(**existing_values)

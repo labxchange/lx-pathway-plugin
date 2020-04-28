@@ -13,9 +13,6 @@ from jsonfield.fields import JSONField
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 from rest_framework import serializers
-from xblock.exceptions import XBlockNotFoundError
-
-from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
 
 from .keys import PathwayLocator, PathwayUsageLocator
 
@@ -83,12 +80,11 @@ class Pathway(models.Model):
                 raise serializers.ValidationError("Some item IDs are not unique.")
             for item in items:
                 try:
-                    item_usage_key = UsageKey.from_string(item["original_usage_id"])
+                    UsageKey.from_string(item["original_usage_id"])
                 except InvalidKeyError:
                     raise serializers.ValidationError("Invalid item ID: {}".format(item["original_usage_id"]))
-                if item.get("version") == 0:
-                    # Set the "version" to the current newest version
-                    item["version"] = lookup_current_version_for_usage_key(item_usage_key)
+                if item.get("version") is not None:
+                    raise serializers.ValidationError("Pinning the version of pathway items is no longer supported.")
                 if "usage_id" in item:
                     del item["usage_id"]  # This field is only added in the REST API response, never saved to DB
             # Replace the current value of draft_data or published_data with the cleaned version
@@ -107,20 +103,6 @@ def make_random_id():
     return ''.join(random.SystemRandom().choice('0123456789abcdef') for n in range(8))
 
 
-def lookup_current_version_for_usage_key(usage_key):
-    """
-    Determine the current version of the blockstore bundle containing the
-    specified XBlock.
-    """
-    learning_context = get_learning_context_impl(usage_key)
-    def_key = learning_context.definition_for_usage(usage_key, force_draft=False)
-    if not def_key:
-        raise XBlockNotFoundError(usage_key)
-    if not def_key.bundle_version:
-        raise ValueError("The specified XBlock is from a bundle that has not been published.")
-    return def_key.bundle_version
-
-
 class PathwayItemSerializer(serializers.Serializer):
     """
     Serializer for the data about each item in a pathway
@@ -129,10 +111,6 @@ class PathwayItemSerializer(serializers.Serializer):
     usage_id = serializers.SerializerMethodField(required=False, read_only=True)
     original_usage_id = serializers.CharField()  # The XBlock's original usage key (in a library, course, or pathway)
     id = serializers.SlugField(default=make_random_id)
-    # What version of the XBlock to use (it's actually the xblock's library/course *bundle* version number)
-    # If None that means "always use the newest version."
-    # If 0, that means "determine what the newest version currently is and use that specific version going forward."
-    version = serializers.IntegerField(min_value=0, allow_null=True, default=0)
     data = serializers.JSONField(default={})  # Other arbitrary data like "notes"
 
     def get_usage_id(self, obj):
