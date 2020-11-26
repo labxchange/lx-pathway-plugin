@@ -43,6 +43,8 @@ class PathwayApiTests(APITestCase):
             description="",
             allow_public_learning=True,
             allow_public_read=True,
+            library_type='complex',
+            library_license='',
         )
         cls.problem_block1_id = library_api.create_library_block(cls.lib1.key, "problem", "p1").usage_key
         library_api.publish_changes(cls.lib1.key)
@@ -54,6 +56,8 @@ class PathwayApiTests(APITestCase):
             description="",
             allow_public_learning=True,
             allow_public_read=True,
+            library_type='complex',
+            library_license='',
         )
         cls.html_block2_id = library_api.create_library_block(cls.lib2.key, "html", "h2").usage_key
         library_api.publish_changes(cls.lib2.key)
