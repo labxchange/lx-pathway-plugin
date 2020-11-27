@@ -124,6 +124,9 @@ class PathwayItemSerializer(serializers.Serializer):
             return str(PathwayUsageLocator(pathway_key=pathway_key, block_type=block_type, usage_id=usage_id))
 
     def validate_original_usage_id(self, obj):
+        """
+        Validates the original_usage_id field isn't from a pathway child (it should be from an original asset)
+        """
         locator = UsageKey.from_string(obj)
         if isinstance(locator, PathwayUsageLocator):
             raise serializers.ValidationError("Invalid asset key")
