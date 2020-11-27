@@ -43,6 +43,8 @@ class PathwayApiTests(APITestCase):
             description="",
             allow_public_learning=True,
             allow_public_read=True,
+            library_type='complex',
+            library_license='',
         )
         cls.problem_block1_id = library_api.create_library_block(cls.lib1.key, "problem", "p1").usage_key
         library_api.publish_changes(cls.lib1.key)
@@ -54,6 +56,8 @@ class PathwayApiTests(APITestCase):
             description="",
             allow_public_learning=True,
             allow_public_read=True,
+            library_type='complex',
+            library_license='',
         )
         cls.html_block2_id = library_api.create_library_block(cls.lib2.key, "html", "h2").usage_key
         library_api.publish_changes(cls.lib2.key)
@@ -98,6 +102,23 @@ class PathwayApiTests(APITestCase):
                 ],
             },
         }
+
+    def test_pathway_invalid_original_key(self):
+        response = self.client.post(URL_CREATE_PATHWAY, self.pathway_initial_data, format='json')
+        self.assertEqual(response.status_code, 200)
+        pathway_id = response.data["id"]
+        response = self.client.patch(
+            URL_GET_PATHWAY.format(pathway_id=pathway_id), {
+                "draft_data": {
+                    "items": [
+                        {'original_usage_id': 'lx-pb:00000000-e4fe-47af-8ff6-123456789000:unit:0ff24589'},
+                    ],
+                },
+            }, format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue('Invalid asset key' in str(response.data))
 
     def test_pathway_create_other_user(self):
         """
