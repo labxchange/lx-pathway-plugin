@@ -25,6 +25,14 @@ pip install -e /edx/src/lx-pathway-plugin
 
 ## Testing on Devstack
 
+From the blockstore repo:
+
+```
+make testserver
+```
+
+From devstack:
+
 ```
 make studio-shell
 make -f /edx/src/lx-pathway-plugin/Makefile validate
