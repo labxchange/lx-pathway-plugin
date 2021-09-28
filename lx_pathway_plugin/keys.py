@@ -55,8 +55,8 @@ class PathwayLocator(LearningContextKey):
         uuid_str = serialized
         try:
             return cls(uuid=uuid_str)
-        except (ValueError, TypeError):
-            raise InvalidKeyError(cls, serialized)
+        except (ValueError, TypeError) as exc:
+            raise InvalidKeyError(cls, serialized) from exc
 
 
 class PathwayUsageLocator(CheckFieldMixin, UsageKeyV2):
