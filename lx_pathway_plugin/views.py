@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.db import IntegrityError
 from django.http import Http404
 from opaque_keys import InvalidKeyError
+from openedx.core.lib.api.view_utils import view_auth_classes
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -16,7 +17,6 @@ from rest_framework.views import APIView
 
 from lx_pathway_plugin.keys import PathwayLocator
 from lx_pathway_plugin.models import Pathway, PathwaySerializer
-from openedx.core.lib.api.view_utils import view_auth_classes
 
 User = get_user_model()
 

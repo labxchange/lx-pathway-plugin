@@ -7,15 +7,14 @@ These tests need to be run within Studio's virtualenv:
 from copy import deepcopy
 from unittest.mock import patch
 
+from common.djangoapps.student.tests.factories import UserFactory
 from django.test import override_settings
 from opaque_keys.edx.keys import UsageKey
-from organizations.models import Organization
-from rest_framework.test import APIClient, APITestCase
-
 from openedx.core.djangoapps.content_libraries import api as library_api
 from openedx.core.djangoapps.xblock import api as xblock_api
 from openedx.core.lib import blockstore_api
-from common.djangoapps.student.tests.factories import UserFactory
+from organizations.models import Organization
+from rest_framework.test import APIClient, APITestCase
 
 URL_CREATE_PATHWAY = '/api/lx-pathways/v1/pathway/'
 URL_GET_PATHWAY = URL_CREATE_PATHWAY + '{pathway_id}/'
