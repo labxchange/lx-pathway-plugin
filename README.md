@@ -23,9 +23,23 @@ git clone https://github.com/open-craft/lx-pathway-plugin.git
 pip install -e /edx/src/lx-pathway-plugin
 ```
 
-## Testing on Devstack
+## Testing
+
+You would need the following up and running to test the plugin:
+1. edx-platform service: lms
+2. edx-platform service: studio
 
 ```
+# Start the blockstore testserver
+
+cd blockstore
+make testserver
+
+# On a separate terminal
 make studio-shell
-make -f /edx/src/lx-pathway-plugin/Makefile validate
+make -f /edx/src/lx-pathway-plugin/Makefile validate # inside the studio shell
+
+# On a separate terminal
+make lms-shell
+make -f /edx/src/lx-pathway-plugin/Makefile validate # inside the lms shell
 ```
