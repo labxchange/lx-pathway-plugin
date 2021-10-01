@@ -46,7 +46,7 @@ cd $OPENEDX_WORDIR/devstack
 make studio-shell
 make -f /edx/src/lx-pathway-plugin/Makefile validate # inside the studio shell
 
-# 4.a. On a separate terminal
+# 3.b. On a separate terminal
 cd $OPENEDX_WORKDIR/devstack
 make lms-shell
 make -f /edx/src/lx-pathway-plugin/Makefile validate # inside the lms shell
