@@ -25,21 +25,29 @@ pip install -e /edx/src/lx-pathway-plugin
 
 ## Testing
 
-You would need the following up and running to test the plugin:
+You would need the following up and running to test the plugin.:
 1. edx-platform service: lms
 2. edx-platform service: studio
 
-```
-# Start the blockstore testserver
+### Note
+Please follow the [guide](https://github.com/edx/devstack) to install lms and studio, if not installed.
 
-cd blockstore
+```
+# 1. Copy the above plugin into the src folder
+cp -r lx-pathway-plugin $OPENEDX_WORKDIR/src/
+
+# 2. Start the blockstore testserver
+
+cd $OPENEDX_WORKDIR/blockstore
 make testserver
 
-# On a separate terminal
+# 3.a. On a separate terminal
+cd $OPENEDX_WORDIR/devstack
 make studio-shell
 make -f /edx/src/lx-pathway-plugin/Makefile validate # inside the studio shell
 
-# On a separate terminal
+# 4.a. On a separate terminal
+cd $OPENEDX_WORKDIR/devstack
 make lms-shell
 make -f /edx/src/lx-pathway-plugin/Makefile validate # inside the lms shell
 ```
