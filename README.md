@@ -3,7 +3,7 @@ LabXchange "Pathway" Plugin for Open edX
 
 This is a django app plugin that implements "Pathways" as an Open edX learning
 context. It exposes pathway functionality via a REST API and integrates with the
-XBlock runtime and XBlock REST APIs.
+XBlock runtime and XBlock REST APIs. Django 2.2 and 3.2 are supported.
 
 A "Pathway" is a short collection of XBlocks that a student works through in a
 linear sequence.
