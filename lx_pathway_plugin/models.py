@@ -81,8 +81,8 @@ class Pathway(models.Model):
             for item in items:
                 try:
                     UsageKey.from_string(item["original_usage_id"])
-                except InvalidKeyError:
-                    raise serializers.ValidationError("Invalid item ID: {}".format(item["original_usage_id"]))
+                except InvalidKeyError as exc:
+                    raise serializers.ValidationError("Invalid item ID: {}".format(item["original_usage_id"])) from exc
                 if item.get("version") is not None:
                     raise serializers.ValidationError("Pinning the version of pathway items is no longer supported.")
                 if "usage_id" in item:

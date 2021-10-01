@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.db import IntegrityError
 from django.http import Http404
 from opaque_keys import InvalidKeyError
+from openedx.core.lib.api.view_utils import view_auth_classes
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -16,7 +17,6 @@ from rest_framework.views import APIView
 
 from lx_pathway_plugin.keys import PathwayLocator
 from lx_pathway_plugin.models import Pathway, PathwaySerializer
-from openedx.core.lib.api.view_utils import view_auth_classes
 
 User = get_user_model()
 
@@ -140,8 +140,8 @@ def create_pathway(request):
         try:
             # To specify a group, the user must be a member of the group:
             group = groups.get(name=serializer.validated_data['owner_group_name'])
-        except Group.DoesNotExist:
-            raise ValidationError("Invalid group name. Does the group exist and are you a member?")
+        except Group.DoesNotExist as exc:
+            raise ValidationError("Invalid group name. Does the group exist and are you a member?") from exc
         kwargs['owner_group'] = group
     else:
         kwargs['owner_user'] = request.user
@@ -153,8 +153,8 @@ def create_pathway(request):
 
     try:
         pathway = Pathway.objects.create(**kwargs)
-    except IntegrityError:
-        raise ValidationError("A conflicting pathway already exists.")
+    except IntegrityError as exc:
+        raise ValidationError("A conflicting pathway already exists.") from exc
     return Response(PathwaySerializer(pathway).data)
 
 
@@ -165,5 +165,5 @@ def get_pathway_or_404(pathway_key_str):
     try:
         pathway_key = PathwayLocator.from_string(pathway_key_str)
         return Pathway.objects.get(uuid=pathway_key.uuid)
-    except (InvalidKeyError, Pathway.DoesNotExist):
-        raise Http404
+    except (InvalidKeyError, Pathway.DoesNotExist) as exc:
+        raise Http404 from exc

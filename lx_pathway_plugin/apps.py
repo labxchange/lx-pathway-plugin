@@ -3,7 +3,6 @@
 lx_pathway_plugin Django application initialization.
 """
 from django.apps import AppConfig
-
 from openedx.core.djangoapps.plugins.constants import PluginSettings, PluginURLs, ProjectType, SettingsType
 
 
