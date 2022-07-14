@@ -18,13 +18,14 @@ class Command(BaseCommand):
 
     EXAMPLE USAGE:
 
-    ./manage.py lms export_student_module_data > output.csv
-        Queries the courseware_studenmodule table for rows whose block IDs start with LabXchange's prefixes.
+    ./manage.py lms export_student_module_data --from-date 2020-01-01 > output.csv
+        Queries the courseware_studentmodule table for rows whose block IDs start with LabXchange's prefixes,
+        starting from Jan 2020, when LabXchange was launched.
 
     ./manage.py lms export_student_module_data --block-prefix "lb:SomeOrg,lb:AnotherOrg" > output.csv
         Queries for blocks matching "lb:SomeOrg" or "lb:AnotherOrg", rather than the default list of block ID prefixes.
 
-    ./manage.py lms export_student_module_data --dry-run
+    ./manage.py lms export_student_module_data --dry-run --from-date 2020-01-01
         Runs an EXPLAIN command on the proposed query to show cost and complexity, but does not run the query itself.
         ref https://dev.mysql.com/doc/refman/5.7/en/explain-output.html
     """
@@ -51,6 +52,16 @@ class Command(BaseCommand):
             help='Request a different (comma-delimited) list of block prefixes than the default.',
         )
 
+        parser.add_argument(
+            '-f', '--from-date',
+            help='Include data created after this date (YYYY-MM-DD).',
+        )
+
+        parser.add_argument(
+            '-t', '--to-date',
+            help='Include data created before this date (YYYY-MM-DD).',
+        )
+
     def handle(self, *args, **options):
         """
         Prepare and run the query against StudentModule using the given options.
@@ -63,12 +74,16 @@ class Command(BaseCommand):
         modules = StudentModule.objects.filter(prefix_q).prefetch_related(
             Prefetch('student', User.objects.only('username'), to_attr='student_username')
         )
+        if options.get('from_date'):
+            modules = modules.exclude(created__lt=options['from_date'])
+        if options.get('to_date'):
+            modules = modules.exclude(created__gt=options['to_date'])
 
         if options['dry_run']:
             self.stdout.write(modules.explain(format='json'))
             return
 
-        columns = ['student_username', 'course_id', 'module_state_key', 'state']
+        columns = ['student_username', 'course_id', 'module_state_key', 'state', 'created']
         writer = csv.writer(self.stdout)
         writer.writerow(columns)
         for module in chunked_queryset_iterator(modules):
