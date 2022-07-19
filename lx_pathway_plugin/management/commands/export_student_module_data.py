@@ -2,11 +2,13 @@
 Management command to extract student module data for LabXchange's blocks.
 """
 import csv
-
-from cursor_pagination import CursorPaginator
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
-from django.db.models import Prefetch, Q
+from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Prefetch
+
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import UsageKey
+
 from lms.djangoapps.courseware.models import StudentModule
 
 User = get_user_model()
@@ -14,18 +16,18 @@ User = get_user_model()
 
 class Command(BaseCommand):
     """
-    Dumps the student.username, course_id, module_state_key (aka block_id) and state (JSON) in CSV format to stdout.
+    Dumps the student.username, course_id, module_state_key (aka block_id) and state (JSON) in CSV format.
 
     EXAMPLE USAGE:
 
-    ./manage.py lms export_student_module_data --from-date 2020-01-01 > output.csv
+    ./manage.py lms export_student_module_data --block-ids input.txt --output output.csv
+        Queries for blocks matching IDs in the given input.txt file (one per line).
+
+    ./manage.py lms export_student_module_data --block-ids input.txt --from-date 2020-01-01 --output output.csv
         Queries the courseware_studentmodule table for rows whose block IDs start with LabXchange's prefixes,
         starting from Jan 2020, when LabXchange was launched.
 
-    ./manage.py lms export_student_module_data --block-prefix "lb:SomeOrg,lb:AnotherOrg" > output.csv
-        Queries for blocks matching "lb:SomeOrg" or "lb:AnotherOrg", rather than the default list of block ID prefixes.
-
-    ./manage.py lms export_student_module_data --dry-run --from-date 2020-01-01
+    ./manage.py lms export_student_module_data --dry-run --block-ids input.txt --from-date 2020-01-01
         Runs an EXPLAIN command on the proposed query to show cost and complexity, but does not run the query itself.
         ref https://dev.mysql.com/doc/refman/5.7/en/explain-output.html
     """
@@ -41,78 +43,146 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
-            '-b', '--block-prefix',
-            type=lambda s: list(s.split(',')),
-            default=[
-                'lb:LabXchange:',
-                'lb:HarvardX:',
-                'lb:SDGAcademyX:',
-                'lx-pb:',
-            ],
-            help='Request a different (comma-delimited) list of block prefixes than the default.',
+            "-o",
+            "--output",
+            type=str,
+            default=None,
+            help="Path/Name of the file to write the output into.",
+        )
+
+        parser.add_argument(
+            '-b', '--block-ids',
+            metavar='FILENAME',
+            help='File containing block/module IDs to export, one per line.',
         )
 
         parser.add_argument(
             '-f', '--from-date',
-            help='Include data created after this date (YYYY-MM-DD).',
+            metavar='YYYY-MM-DD',
+            help='Include data created after this date.',
         )
 
         parser.add_argument(
             '-t', '--to-date',
-            help='Include data created before this date (YYYY-MM-DD).',
+            metavar='YYYY-MM-DD',
+            help='Include data created before this date.',
         )
+
+        parser.add_argument(
+            '-s', '--batch-size',
+            type=int,
+            metavar='500',
+            help='Number of block IDs to fetch per query.',
+        )
+
+    def _read_block_ids(self, filename):
+        """
+        Reads and returns a unique list of block IDs contained in filename.
+
+        Raises CommandError if:
+        * unable to read filename
+        * no valid UsageKey values are found in filename
+        """
+        if not filename:
+            raise CommandError('--block-ids FILENAME required')
+
+        block_ids = set()
+        try:
+            with open(filename) as input_file:
+                for line in input_file:
+                    block_id = line.strip()
+                    try:
+                        usage_key = UsageKey.from_string(block_id)
+                        block_ids.add(usage_key)
+                    except InvalidKeyError:
+                        self.stderr.write(f'Invalid key "{block_id}": SKIPPED')
+
+        except IOError as err:
+            raise CommandError(f'Unable to read --block-ids {filename}') from err
+
+        if not block_ids:
+            raise CommandError(f'No valid block IDs found in {filename}')
+
+        return block_ids
 
     def handle(self, *args, **options):
         """
         Prepare and run the query against StudentModule using the given options.
         """
-        # Assemble an OR filter with the requested block prefixes
-        prefix_q = Q()
-        for prefix in options['block_prefix']:
-            prefix_q |= Q(module_state_key__startswith=prefix)
+        queryset = StudentModule.objects
 
-        modules = StudentModule.objects.filter(prefix_q).prefetch_related(
+        # Filter by block_ids (in batches)
+        block_ids = self._read_block_ids(options.get('block_ids'))
+        batch_size = options['batch_size'] or len(block_ids)
+        num_batches = len(list(chunks(block_ids, batch_size)))
+
+        # Filter by date range
+        if options.get('from_date'):
+            queryset = queryset.exclude(created__lt=options['from_date'])
+        if options.get('to_date'):
+            queryset = queryset.exclude(created__gt=options['to_date'])
+
+        # Open the output file/stream
+        if options["output"]:
+            output = open(options["output"], "w")
+        else:
+            output = self.stdout
+
+        # 0. EXPLAIN the query, or run it?
+        if options['dry_run']:
+            # Explain only the first batch
+            modules = next(chunked_filter(queryset, 'module_state_key__in', block_ids, batch_size))
+            output.write(modules.explain(format='json'))
+            return
+
+        # 1. Gather total count
+        total = 0
+        for modules in chunked_filter(queryset, 'module_state_key__in', block_ids, batch_size):
+            total += modules.count()
+        if not total:
+            self.stderr.write("No records found.")
+            return
+
+        # Ensure we're prefetching the student's username
+        queryset = queryset.prefetch_related(
             Prefetch('student', User.objects.only('username'), to_attr='student_username')
         )
-        if options.get('from_date'):
-            modules = modules.exclude(created__lt=options['from_date'])
-        if options.get('to_date'):
-            modules = modules.exclude(created__gt=options['to_date'])
 
-        if options['dry_run']:
-            self.stdout.write(modules.explain(format='json'))
-            return
-
-        columns = ['student_username', 'course_id', 'module_state_key', 'state', 'created']
-        writer = csv.writer(self.stdout)
+        # 2. Fetch and output the data
+        columns = ['student_username', 'course_id', 'module_state_key', 'state', 'created', 'modified']
+        writer = csv.writer(output)
         writer.writerow(columns)
-        for module in chunked_queryset_iterator(modules):
-            writer.writerow([getattr(module, col, 'None') for col in columns])
+        fetched = 0
+        percent = 0
+        batch = 0
+        self.stdout.write(f"Fetching {total} records... (in {num_batches} batches)", ending='\r')
+        for modules in chunked_filter(queryset, 'module_state_key__in', block_ids, batch_size):
+            batch += 1
+
+            for module in modules:
+                writer.writerow([getattr(module, col, 'None') for col in columns])
+                fetched += 1
+                percent = int(100 * fetched / total)
+                self.stdout.write(
+                    f"Fetched {fetched} / {total} records (batch {batch} / {num_batches})... {percent}%",
+                    ending='\r',
+                )
+
+        self.stdout.write(
+            f"Fetched {fetched} / {total} records (batch {batch} / {num_batches})... {percent}%",
+        )
 
 
-# Ref https://blog.labdigital.nl/working-with-huge-data-sets-in-django-169453bca049
-def chunked_queryset_iterator(queryset, size=1000, *, ordering=('id',)):
-    """Split a queryset into chunks.
-
-    This can be used instead of ``queryset.iterator()``,
-    so ``.prefetch_related()`` also works.
-
-    .. note::
-    The ordering must uniquely identify the object,
-    and be in the same order (ASC/DESC).
+def chunks(items, chunk_size):
     """
-    pager = CursorPaginator(queryset, ordering)
-    after = None
+    Yields the values from items in chunks of size chunk_size
+    """
+    items = list(items)
+    return (items[i:i + chunk_size] for i in range(0, len(items), chunk_size))
 
-    while True:
-        page = pager.page(after=after, first=size)
-        if page:
-            yield from page.items
-        else:
-            return
-
-        if not page.has_next:
-            break
-
-        # take last item, next page starts after this.
-        after = pager.cursor(instance=page[-1])
+def chunked_filter(queryset, chunk_field, items, chunk_size=500):
+    """
+    Generates querysets filtered on chunk_field=items, where the items are divided into chunk_size batches.
+    """
+    for chunk in chunks(items, chunk_size):
+        yield queryset.filter(**{chunk_field: chunk})

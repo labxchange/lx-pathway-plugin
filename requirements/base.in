@@ -9,5 +9,3 @@
 
 # If any requirements in addition to those installed by Open edX are needed,
 # specify them here (or in quality.in, test.in, etc.):
-
-django-cursor-pagination==0.1.5
