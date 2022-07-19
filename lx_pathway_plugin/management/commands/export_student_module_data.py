@@ -2,6 +2,8 @@
 Management command to extract student module data for LabXchange's blocks.
 """
 import csv
+import urllib
+
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Prefetch
@@ -52,7 +54,7 @@ class Command(BaseCommand):
 
         parser.add_argument(
             '-b', '--block-ids',
-            metavar='FILENAME',
+            metavar='FILENAME|URL',
             help='File containing block/module IDs to export, one per line.',
         )
 
@@ -86,19 +88,33 @@ class Command(BaseCommand):
         if not filename:
             raise CommandError('--block-ids FILENAME required')
 
-        block_ids = set()
-        try:
-            with open(filename) as input_file:
-                for line in input_file:
-                    block_id = line.strip()
-                    try:
-                        usage_key = UsageKey.from_string(block_id)
-                        block_ids.add(usage_key)
-                    except InvalidKeyError:
-                        self.stderr.write(f'Invalid key "{block_id}": SKIPPED')
+        # Is filename a URL?
+        parsed = urllib.parse.urlparse(filename)
+        if parsed.scheme:
+            try:
+                input_file = urllib.request.urlopen(filename)
+            except urllib.error.URLError as err:
+                raise CommandError(f'Unable to read URL {filename}, {err}') from err
+        else:
+            try:
+                input_file = open(filename)
+            except IOError as err:
+                raise CommandError(f'Unable to read --block-ids {filename}, {err}') from err
 
-        except IOError as err:
-            raise CommandError(f'Unable to read --block-ids {filename}') from err
+        block_ids = set()
+        for line in input_file:
+            # Decode any binary data
+            block_id = line.strip()
+            if not isinstance(block_id, str):
+                block_id = block_id.decode('utf-8')
+
+            # Add only a valid UsageKey to the list
+            try:
+                usage_key = UsageKey.from_string(block_id)
+                block_ids.add(usage_key)
+            except InvalidKeyError:
+                self.stderr.write(f'Invalid key "{block_id}": SKIPPED')
+        input_file.close()
 
         if not block_ids:
             raise CommandError(f'No valid block IDs found in {filename}')
