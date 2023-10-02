@@ -8,8 +8,7 @@ from opaque_keys.edx.keys import UsageKey
 from openedx.core.djangoapps.xblock.learning_context import LearningContext
 from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
 
-from lx_pathway_plugin.keys import PathwayLocator, PathwayUsageLocator
-from lx_pathway_plugin.models import Pathway
+from lx_pathway_plugin.keys import PathwayUsageLocator
 
 log = logging.getLogger(__name__)
 
@@ -63,10 +62,7 @@ class PathwayContextImpl(LearningContext):
         Must return a BundleDefinitionLocator if the XBlock exists in this
         context, or None otherwise.
         """
-        try:
-            original_usage_id = self._original_usage_id(usage_key, **kwargs)
-        except Pathway.DoesNotExist:
-            return None
+        original_usage_id = self._original_usage_id(usage_key, **kwargs)
         if not original_usage_id:
             return None
         original_learning_context = get_learning_context_impl(original_usage_id)
@@ -109,26 +105,6 @@ class PathwayContextImpl(LearningContext):
                 usage_id=pathway_usage_key.child_usage_id,
             )
         return original_usage_id
-
-    def _pathway_data(self, pathway_key):
-        """
-        Given a Pathway key, get its data (the list of XBlocks in it).
-        Cached per-request for performance.
-        """
-        assert isinstance(pathway_key, PathwayLocator)
-        cache = RequestCache(namespace='lx-pathway-plugin')
-        cache_key = '_pathway_data:{}'.format(str(pathway_key))
-        cache_response = cache.get_cached_response(cache_key)
-        if cache_response.is_found:
-            return cache_response.value
-        try:
-            pathway = Pathway.objects.get(uuid=pathway_key.uuid)
-        except Pathway.DoesNotExist:
-            log.exception("Pathway does not exist for pathway key {}".format(pathway_key))
-            raise
-        result = getattr(pathway, 'draft_data' if self.use_draft else 'published_data')
-        cache.set(cache_key, result)
-        return result
 
 
 def replace_opaque_key(existing_key, **kwargs):
