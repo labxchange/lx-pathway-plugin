@@ -5,8 +5,13 @@ import logging
 
 from edx_django_utils.cache.utils import RequestCache
 from opaque_keys.edx.keys import UsageKey
-from openedx.core.djangoapps.xblock.learning_context import LearningContext
-from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
+
+try:
+    from openedx.core.djangoapps.xblock.learning_context import LearningContext
+    from openedx.core.djangoapps.xblock.learning_context.manager import get_learning_context_impl
+except ModuleNotFoundError:
+    from labxchange.apps.blocks.learning_context import LearningContext, get_learning_context_impl
+
 
 from lx_pathway_plugin.keys import PathwayLocator, PathwayUsageLocator
 from lx_pathway_plugin.models import Pathway
